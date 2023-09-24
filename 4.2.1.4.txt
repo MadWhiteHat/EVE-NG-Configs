@@ -1,0 +1,187 @@
+!! eve-ng fails to properly configure port-chanel as listed
+!! switchport settings are actually inherited after establishing etherchannel connection
+
+S1:
+en
+conf t
+hostname S1
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3, g1/0-3
+sh
+exit
+
+vlan 10
+name Staff
+vlan 99
+name Management
+
+int vlan 99
+ip addr 192.168.99.11 255.255.255.0
+no sh
+
+int g0/2
+switchport mode access
+switchport access vlan 10
+no sh
+
+int range g1/0-1
+channel-group 1 mode desirable
+no sh
+
+int range g0/0-1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+switchport trunk native vlan 99
+channel-group 2 mode active
+no sh
+
+int po1
+switchport trunk encapsulation dot1q
+switchport trunk native vlan 99
+switchport mode trunk
+no sh
+
+int po2
+no sh
+
+end
+wr
+
+S2:
+en
+conf t
+hostname S2
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3, g1/0-3
+sh
+exit
+
+vlan 10
+name Staff
+vlan 99
+name Management
+
+int vlan 99
+ip addr 192.168.99.12 255.255.255.0
+no sh
+
+int g0/2
+switchport mode access
+switchport access vlan 10
+no sh
+
+int range g1/0-1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+switchport trunk native vlan 99
+channel-group 2 mode passive
+no sh
+
+int range g0/0-1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+switchport trunk native vlan 99
+channel-group 3 mode active
+no sh
+
+int po2
+no sh
+
+int po3
+no sh
+
+end
+wr
+
+
+S3:
+en
+conf t
+hostname S3
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3, g1/0-3
+sh
+exit
+
+vlan 10
+name Staff
+vlan 99
+name Management
+
+int vlan 99
+ip addr 192.168.99.13 255.255.255.0
+no sh
+
+int g0/2
+switchport mode access
+switchport access vlan 10
+no sh
+
+int range g0/0-1
+channel-group 1 mode auto
+no sh
+
+int range g1/0-1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+switchport trunk native vlan 99
+channel-group 3 mode passive
+no sh
+
+int po1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+switchport trunk native vlan 99
+no sh
+exit
+
+end
+wr
+
+PC-A:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 192.168.10.1 netmask 255.255.255.0
+
+PC-B:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 192.168.10.2 netmask 255.255.255.0
+
+PC-C:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 192.168.10.3 netmask 255.255.255.0

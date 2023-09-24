@@ -1,0 +1,21 @@
+en
+conf t
+hostname S1
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3, g1/0-3
+sh
+
+end
+wr

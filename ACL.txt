@@ -1,0 +1,73 @@
+Gateway:
+
+en
+conf t
+ip routing
+end
+wr
+reload
+
+en
+conf t
+hostname Gateway
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+int range g0/0-3, g1/0-3
+sh
+
+ip access-list extend OUT_VLAN_20
+ip access-list extend OUT_VLAN_30
+exit
+
+int vlan 10
+ip addr 10.0.0.1 255.255.255.0
+no sh
+int vlan 20
+ip addr 192.168.0.1 255.255.255.0
+ip access-group OUT_VLAN_20 out
+no sh
+int vlan 30
+ip addr 172.16.0.1 255.255.255.0
+ip access-group OUT_VLAN_30 out
+no sh
+
+int g0/0
+switchport access vlan 10
+switchport mode access
+no sh
+int g0/1
+switchport access vlan 20
+switchport mode access
+no sh
+int g0/2
+switchport access vlan 30
+switchport mode access
+no sh
+
+end
+wr
+
+Outside:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 10.0.0.10 netmask 255.255.255.0
+sudo ip route add default via 10.0.0.1 dev ens3
+
+Inside:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 192.168.0.10 netmask 255.255.255.0
+sudo ip route add default via 192.168.0.1 dev ens3
+
+DMZ:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 172.16.0.10 netmask 255.255.255.0
+sudo ip route add default via 172.16.0.1 dev ens3

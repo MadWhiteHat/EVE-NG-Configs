@@ -1,0 +1,153 @@
+R1
+
+enable
+configure terminal
+
+no ip domain-lookup
+hostname R1
+enable secret class
+service password-encryption
+
+line console 0
+password cisco
+login
+logging synchronous
+
+line vty 0 3
+password cisco
+login
+logging synchronous
+
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+shutdown
+
+interface loopback0
+ip address 209.165.200.225 255.255.255.252
+no shutdown
+
+interface loopback1
+ip address 192.168.1.1 255.255.255.0
+no shutdown
+
+interface loopback2
+ip address 192.168.2.1 255.255.255.0
+no shutdown
+
+interface g0/2
+ip address 192.168.12.1 255.255.255.252
+bandwidth 128
+no shutdown
+
+ip route 0.0.0.0 0.0.0.0 loopback0
+
+router ospf 1
+router-id 1.1.1.1
+default-information originate
+network 192.168.1.0 0.0.0.255 area 1
+network 192.168.2.0 0.0.0.255 area 1
+network 192.168.12.0 0.0.0.3 area 0
+passive-interface loopback1
+passive-interface loopback2
+
+end
+wr
+
+R2
+
+enable
+configure terminal
+
+no ip domain-lookup
+hostname R2
+enable secret class
+service password-encryption
+
+line console 0
+password cisco
+login
+logging synchronous
+
+line vty 0 3
+password cisco
+login
+logging synchronous
+
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+shutdown
+
+interface loopback6
+ip address 192.168.6.1 255.255.255.0
+interface g0/2
+
+interface g0/2
+ip address 192.168.23.1 255.255.255.252
+bandwidth 128
+no shutdown
+
+interface g0/3
+ip address 192.168.12.2 255.255.255.252
+bandwidth 128
+no shutdown
+
+router ospf 1
+router-id 2.2.2.2
+network 192.168.6.0 0.0.0.255 area 3
+network 192.168.23.0 0.0.0.3 area 3
+network 192.168.12.0 0.0.0.3 area 0
+passive-interface loopback6
+
+end
+wr
+
+R3
+
+enable
+configure terminal
+
+no ip domain-lookup
+hostname R3
+enable secret class
+service password-encryption
+
+line console 0
+password cisco
+login
+logging synchronous
+
+line vty 0 3
+password cisco
+login
+logging synchronous
+
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+shutdown
+
+interface g0/3
+ip address 192.168.23.2 255.255.255.252
+band 128
+no shutdown
+
+int lo4
+ip addr 192.168.4.1 255.255.255.0
+exit
+
+int lo5
+ip addr 192.168.5.1 255.255.255.0
+exit
+
+router ospf 1
+router-id 3.3.3.3
+network 192.168.4.0 0.0.0.255 area 3
+network 192.168.5.0 0.0.0.255 area 3
+network 192.168.23.0 0.0.0.3 area 3
+passive-interface loopback4
+passive-interface loopback5
+
+end
+wr
