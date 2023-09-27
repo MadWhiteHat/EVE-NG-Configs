@@ -3,12 +3,6 @@ Gateway:
 en
 conf t
 ip routing
-end
-wr
-reload
-
-en
-conf t
 hostname Gateway
 no ip domain-lo
 ena s class
@@ -24,21 +18,43 @@ logg s
 banner motd 'Unauthorized access is prohibited'
 int range g0/0-3, g1/0-3
 sh
+end
+wr
+reload
 
-ip access-list extend OUT_VLAN_20
-ip access-list extend OUT_VLAN_30
+en
+conf t
+
+no ip access-list extend VLAN_10_IN
+no ip access-list extend VLAN_20_IN
+no ip access-list extend VLAN_30_IN
+
+ip access-list extend VLAN_10_IN
+permit tcp 10.0.0.0 0.0.0.255 host 172.16.0.10 eq 1111
+permit icmp 10.0.0.0 0.0.0.255 host 172.16.0.10 echo
+
+ip access-list extend VLAN_20_IN
+permit ip 192.168.0.0 0.0.0.255 10.0.0.0 0.0.0.255
+permit tcp 192.168.0.0 0.0.0.255 host 172.16.0.10 eq 1111
+permit icmp 192.168.0.0 0.0.0.255 host 172.16.0.10 echo
+
+ip access-list extend VLAN_30_IN
+permit ip 172.16.0.0 0.0.0.255 10.0.0.0 0.0.0.255
+permit tcp host 172.16.0.10 eq 1111 192.168.0.0 0.0.0.255
+_permit icmp host 172.16.0.10 192.168.0.0 0.0.0.255 echo-reply
 exit
 
 int vlan 10
 ip addr 10.0.0.1 255.255.255.0
+ip access-group VLAN_10_IN in
 no sh
 int vlan 20
 ip addr 192.168.0.1 255.255.255.0
-ip access-group OUT_VLAN_20 out
+ip access-group VLAN_20_IN in
 no sh
 int vlan 30
 ip addr 172.16.0.1 255.255.255.0
-ip access-group OUT_VLAN_30 out
+ip access-group VLAN_30_IN in
 no sh
 
 int g0/0
@@ -58,16 +74,10 @@ end
 wr
 
 Outside:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 10.0.0.10 netmask 255.255.255.0
-sudo ip route add default via 10.0.0.1 dev ens3
+sudo ip link set dev ens3 up && sudo ifconfig ens3 10.0.0.10 netmask 255.255.255.0 && sudo ip route add default via 10.0.0.1 dev ens3
 
 Inside:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 192.168.0.10 netmask 255.255.255.0
-sudo ip route add default via 192.168.0.1 dev ens3
+sudo ip link set dev ens3 up && sudo ifconfig ens3 192.168.0.10 netmask 255.255.255.0 && sudo ip route add default via 192.168.0.1 dev ens3
 
 DMZ:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 172.16.0.10 netmask 255.255.255.0
-sudo ip route add default via 172.16.0.1 dev ens3
+sudo ip link set dev ens3 up && sudo ifconfig ens3 172.16.0.10 netmask 255.255.255.0 && sudo ip route add default via 172.16.0.1 dev ens3
