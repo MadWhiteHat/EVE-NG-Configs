@@ -1,0 +1,660 @@
+R1:
+en
+conf t
+hostname R1
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+ip route 0.0.0.0 0.0.0.0 g0/0
+
+interface g0/0
+ip addr 10.0.1.250 255.255.255.252
+no sh
+
+interface g0/1
+ip addr 10.0.1.245 255.255.255.252
+no sh
+
+end
+wr
+
+R2:
+en
+conf t
+hostname R2
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+username R3 password cisco
+
+interface g0/0
+ip addr 10.0.1.253 255.255.255.252
+no sh
+
+interface g0/1
+ip addr 10.0.1.249 255.255.255.252
+no sh
+
+ip route 192.168.10.0 255.255.255.0 g0/0
+ip route 192.168.11.0 255.255.255.0 g0/0
+
+ip dhcp excluded-address 192.168.10.1 192.168.10.16
+ip dhcp pool POOL_VLAN_A
+network 192.168.10.0 255.255.255.0
+default-router 192.168.10.1
+exit
+
+ip dhcp excluded-address 192.168.11.1 192.168.11.16
+ip dhcp pool POOL_VLAN_B
+network 192.168.11.0 255.255.255.0
+default-router 192.168.11.1
+exit
+
+interface g0/2
+pppoe enable
+pppoe-client dial-pool-number 1
+no sh
+
+interface dialer 1
+mtu 1492
+ip addr negotiated
+encapsulation ppp
+dialer pool 1
+ppp authentication chap callin
+ppp chap hostname R2
+ppp chap password cisco
+exit
+
+ip route 0.0.0.0 0.0.0.0 dialer 1
+
+interface Tunnel0
+ip addr 10.1.0.1 255.255.255.252
+tunnel source dialer 1
+tunnel destination 203.0.113.26
+no sh
+exit
+
+end
+wr
+
+R3:
+en
+conf t
+hostname R3
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+interface g0/2
+ip addr 203.0.113.1 255.255.255.240
+no sh
+
+username R2 password cisco
+
+bba-group pppoe R2_GROUP
+virtual-template 1
+exit
+
+ip local pool R2_POOL 203.0.113.18
+interface virtual-template 1
+ip addr 203.0.113.17 255.255.255.248
+mtu 1492
+peer default ip address pool R2_POOL
+ppp authentication chap callin
+exit
+
+int g0/0
+pppoe enable group R2_GROUP
+no sh
+exit
+
+username R4 password cisco
+
+bba-group pppoe R4_GROUP
+virtual-template 2
+exit
+
+ip local pool R4_POOL 203.0.113.26
+interface virtual-template 2
+ip addr 203.0.113.25 255.255.255.248
+mtu 1492
+peer default ip address pool R4_POOL
+ppp authentication chap callin
+exit
+
+
+int g0/1
+pppoe enable group R4_GROUP
+no sh
+
+end
+wr
+
+R4:
+en
+conf t
+hostname R4
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+username R3 password cisco
+
+interface g0/0
+ip addr 10.0.0.249 255.255.255.248
+no sh
+
+ip route 0.0.0.0 0.0.0.0 g0/1
+
+router ospf 1
+router-id 4.4.4.4
+default-information originate
+network 10.0.0.248 0.0.0.7 area 0
+
+ip dhcp excluded-address 192.168.12.1 192.168.12.16
+ip dhcp excluded-address 192.168.12.254 192.168.12.254
+ip dhcp pool POOL_VLAN_C
+network 192.168.12.0 255.255.255.0
+default-router 192.168.12.254
+exit
+
+ip dhcp excluded-address 192.168.13.1 192.168.13.16
+ip dhcp excluded-address 192.168.13.254 192.168.13.254
+ip dhcp pool POOL_VLAN_D
+network 192.168.13.0 255.255.255.0
+default-router 192.168.13.254
+exit
+
+
+interface g0/1
+pppoe enable
+pppoe-client dial-pool-number 1
+no sh
+
+interface dialer 1
+mtu 1492
+ip addr negotiated
+encapsulation ppp
+dialer pool 1
+ppp authentication chap callin
+ppp chap hostname R4
+ppp chap password cisco
+exit
+
+ip route 0.0.0.0 0.0.0.0 dialer 1
+
+interface Tunnel0
+ip addr 10.1.0.2 255.255.255.252
+tunnel source dialer 1
+tunnel destination 203.0.113.18
+no sh
+exit
+
+end
+wr
+
+
+R5:
+en
+conf t
+hostname R5
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+int g0/0
+no sh
+
+int g0/0.12
+encapsulation dot1q 12
+description VLAN_C
+ip addr 192.168.12.1 255.255.255.0
+ip helper-address 10.0.0.249
+standby version 2
+standby 12 ip 192.168.12.254
+standby 12 priority 150
+standby 12 preempt
+no sh
+
+int g0/0.13
+encapsulation dot1q 13
+description VLAN_D
+ip addr 192.168.13.1 255.255.255.0
+ip helper-address 10.0.0.249
+standby version 2
+standby 13 ip 192.168.13.254
+standby 13 priority 150
+standby 13 preempt
+no sh
+
+int g0/1
+ip addr 10.0.0.250 255.255.255.248
+no sh
+
+router ospf 1
+router-id 5.5.5.5
+passive-interface g0/0.12
+passive-interface g0/0.13
+network 192.168.12.0 0.0.0.255 area 0
+network 192.168.13.0 0.0.0.255 area 0
+network 10.0.0.248 0.0.0.7 area 0
+
+end
+wr
+
+R6:
+en
+conf t
+hostname R6
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+int g0/0
+no sh
+
+int g0/0.12
+encapsulation dot1q 12
+description VLAN_C
+ip addr 192.168.12.2 255.255.255.0
+ip helper-address 10.0.0.249
+standby version 2
+standby 12 ip 192.168.12.254
+no sh
+
+int g0/0.13
+encapsulation dot1q 13
+description VLAN_D
+ip addr 192.168.13.2 255.255.255.0
+ip helper-address 10.0.0.249
+standby version 2
+standby 13 ip 192.168.13.254
+no sh
+
+int g0/1
+ip addr 10.0.0.251 255.255.255.248
+no sh
+
+router ospf 1
+router-id 6.6.6.6
+passive-interface g0/0.12
+passive-interface g0/0.13
+network 192.168.12.0 0.0.0.255 area 0
+network 192.168.13.0 0.0.0.255 area 0
+network 10.0.0.248 0.0.0.7 area 0
+
+end
+wr
+
+end
+wr
+
+
+S4:
+en
+conf t
+hostname S4
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+int range g0/0-2
+no sh
+
+end
+wr
+
+S1:
+en
+conf t
+hostname S1
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+int range g0/0-1
+no sh
+
+end
+wr
+
+S2L2:
+en
+conf t
+hostname S2L2
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+vlan 10
+name VLAN_A
+vlan 11
+name VLAN_B
+
+int g0/0
+switchport mode access
+switchport access vlan 10
+no sh
+
+int g0/1
+switchport mode access
+switchport access vlan 11
+no sh
+
+int g0/2
+switchport trunk encapsulation dot1q
+switchport mode trunk
+no sh
+
+end
+wr
+
+S2L3:
+en
+conf t
+hostname S2L3
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3
+sh
+
+int g0/0
+no sh
+
+int g0/0.10
+encapsulation dot1q 10
+description VLAN_A
+ip addr 192.168.10.1 255.255.255.0
+ip helper-address 10.0.1.253
+no sh
+
+int g0/0.11
+encapsulation dot1q 11
+description VLAN_B
+ip addr 192.168.11.1 255.255.255.0
+ip helper-address 10.0.1.253
+no sh
+
+int g0/1
+ip address 10.0.1.254 255.255.255.252
+no sh
+
+end
+wr
+
+S3:
+en
+conf t
+hostname S3
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+int range g0/0-1
+no sh
+
+end
+wr
+
+S4:
+en
+conf t
+hostname S4
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+int range g0/0-2
+no sh
+
+end
+wr
+
+S5:
+en
+conf t
+hostname S5
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+vlan 12
+name VLAN_C
+vlan 13
+name VLAN_D
+
+int g0/0
+switchport mode access
+switchport access vlan 12
+no sh
+
+int g0/1
+switchport mode access
+switchport access vlan 13
+no sh
+
+int range g0/2, g1/2
+switchport trunk encapsulation dot1q
+switchport mode trunk
+channel-group 1 mode active
+no sh
+
+int p1
+//switchport trunk encapsulation dot1q
+//switchport mode trunk
+no sh
+
+int g0/3
+switchport trunk encapsulation dot1q
+switchport mode trunk
+no sh
+
+end
+wr
+
+S6:
+en
+conf t
+hostname S6
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 15
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+interface range g0/0-3, g1/0-3
+sh
+
+vlan 12
+name VLAN_C
+vlan 13
+name VLAN_D
+
+int g0/0
+switchport mode access
+switchport access vlan 12
+no sh
+
+int range g0/1, g1/1
+switchport trunk encapsulation dot1q
+switchport mode trunk
+channel-group 1 mode passive
+no sh
+
+int p1
+//switchport trunk encapsulation dot1q
+//switchport mode trunk
+no sh
+
+int g0/2
+switchport trunk encapsulation dot1q
+switchport mode trunk
+no sh
+
+end
+wr
+
+PC-n:
+sudo ip link set dev ens3 up
+sudo dhclient
+sudo dhclient -r
+
+Server:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 10.0.1.246 netmask 255.255.255.252
+sudo ip route add default via 10.0.1.245 dev ens3
+
+PC3:
+sudo ip link set dev ens3 up
+sudo ifconfig ens3 203.0.113.14 netmask 255.255.255.240
+sudo ip route add default via 203.0.113.1 dev ens3
