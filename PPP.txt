@@ -31,7 +31,7 @@ exit
 
 ip local pool PPPoEPool 10.1.1.2 10.1.1.2
 interface virtual-template 1
-ip addr 10.1.1.1 255.255.255.248
+ip addr 10.1.1.1 255.255.255.252
 mtu 1492
 peer default ip address pool PPPoEPool
 ppp authentication chap callin
@@ -44,7 +44,7 @@ exit
 
 router ospf 1
 router-id 1.1.1.1
-network 10.1.1.0 0.0.0.7 area 0
+network 10.1.1.0 0.0.0.3 area 0
 network 209.165.200.225 0.0.0.31 area 0
 passive-interface lo0
 
@@ -97,7 +97,7 @@ exit
 
 router ospf 1
 router-id 2.2.2.2
-network 10.1.1.0 0.0.0.7 area 0
+network 10.1.1.0 0.0.0.3 area 0
 network 192.168.1.1 0.0.0.255 area 0
 passive-interface g0/0
 
