@@ -145,9 +145,7 @@ end
 wr
 
 PC-A:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 192.168.0.2 netmask 255.255.255.0
+sudo ip link set dev ens3 up && sudo ifconfig ens3 192.168.0.2 netmask 255.255.255.0
 
 PC-C:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 192.168.0.3 netmask 255.255.255.0
+sudo ip link set dev ens3 up && sudo ifconfig ens3 192.168.0.3 netmask 255.255.255.0
