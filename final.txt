@@ -17,8 +17,6 @@ banner motd 'Unauthorized access is prohibited'
 interface range g0/0-3
 sh
 
-ip route 0.0.0.0 0.0.0.0 g0/0
-
 interface g0/0
 ip addr 10.0.1.250 255.255.255.252
 no sh
@@ -26,6 +24,13 @@ no sh
 interface g0/1
 ip addr 10.0.1.245 255.255.255.252
 no sh
+exit
+
+router ospf 1
+router-id 1.1.1.1
+network 10.0.1.248 0.0.0.3 area 1
+network 10.0.1.244 0.0.0.3 area 1
+passive-interface g0/1
 
 end
 wr
@@ -53,14 +58,13 @@ username R3 password cisco
 
 interface g0/0
 ip addr 10.0.1.253 255.255.255.252
+ip nat inside
 no sh
 
 interface g0/1
 ip addr 10.0.1.249 255.255.255.252
+ip nat inside
 no sh
-
-ip route 192.168.10.0 255.255.255.0 g0/0
-ip route 192.168.11.0 255.255.255.0 g0/0
 
 ip dhcp excluded-address 192.168.10.1 192.168.10.16
 ip dhcp pool POOL_VLAN_A
@@ -87,9 +91,8 @@ dialer pool 1
 ppp authentication chap callin
 ppp chap hostname R2
 ppp chap password cisco
+ip nat outside
 exit
-
-ip route 0.0.0.0 0.0.0.0 dialer 1
 
 interface Tunnel0
 ip addr 10.1.0.1 255.255.255.252
@@ -97,6 +100,29 @@ tunnel source dialer 1
 tunnel destination 203.0.113.26
 no sh
 exit
+
+ip route 0.0.0.0 0.0.0.0 dialer 1
+ip route 192.168.10.0 255.255.255.0 g0/0
+ip route 192.168.11.0 255.255.255.0 g0/0
+
+router ospf 1
+router-id 2.2.2.2
+network 10.1.0.0 0.0.0.3 area 1
+network 10.0.1.248 0.0.0.3 area 1
+network 10.0.1.244 0.0.0.3 area 1
+default-information originate
+redistribute static
+passive-interface g0/0
+exit
+
+access-list 1 permit 192.168.10.0 0.0.0.255
+access-list 1 permit 192.168.11.0 0.0.0.255
+access-list 1 permit 10.0.1.248 0.0.0.3
+access-list 1 permit 10.0.1.244 0.0.0.3
+access-list 1 permit 10.0.1.252 0.0.0.3
+
+ip nat inside source list 1 int dialer 1 overload
+ip nat inside source static 10.0.1.246 203.0.113.20
 
 end
 wr
@@ -188,14 +214,8 @@ username R3 password cisco
 
 interface g0/0
 ip addr 10.0.0.249 255.255.255.248
+ip nat inside
 no sh
-
-ip route 0.0.0.0 0.0.0.0 g0/1
-
-router ospf 1
-router-id 4.4.4.4
-default-information originate
-network 10.0.0.248 0.0.0.7 area 0
 
 ip dhcp excluded-address 192.168.12.1 192.168.12.16
 ip dhcp excluded-address 192.168.12.254 192.168.12.254
@@ -211,7 +231,6 @@ network 192.168.13.0 255.255.255.0
 default-router 192.168.13.254
 exit
 
-
 interface g0/1
 pppoe enable
 pppoe-client dial-pool-number 1
@@ -225,9 +244,8 @@ dialer pool 1
 ppp authentication chap callin
 ppp chap hostname R4
 ppp chap password cisco
+ip nat outside
 exit
-
-ip route 0.0.0.0 0.0.0.0 dialer 1
 
 interface Tunnel0
 ip addr 10.1.0.2 255.255.255.252
@@ -235,6 +253,20 @@ tunnel source dialer 1
 tunnel destination 203.0.113.18
 no sh
 exit
+
+ip route 0.0.0.0 0.0.0.0 dialer 1
+router ospf 1
+router-id 4.4.4.4
+default-information originate
+network 10.0.0.248 0.0.0.7 area 0
+network 10.1.0.0 0.0.0.3 area 1
+exit
+
+access-list 1 permit 192.168.12.0 0.0.0.255
+access-list 1 permit 192.168.13.0 0.0.0.255
+access-list 1 permit 10.0.0.248 0.0.0.7
+
+ip nat inside source list 1 int dialer 1 overload
 
 end
 wr
@@ -290,6 +322,7 @@ no sh
 
 router ospf 1
 router-id 5.5.5.5
+passive-interface g0/0
 passive-interface g0/0.12
 passive-interface g0/0.13
 network 192.168.12.0 0.0.0.255 area 0
@@ -345,40 +378,12 @@ no sh
 
 router ospf 1
 router-id 6.6.6.6
+passive-interface g0/0
 passive-interface g0/0.12
 passive-interface g0/0.13
 network 192.168.12.0 0.0.0.255 area 0
 network 192.168.13.0 0.0.0.255 area 0
 network 10.0.0.248 0.0.0.7 area 0
-
-end
-wr
-
-end
-wr
-
-
-S4:
-en
-conf t
-hostname S4
-no ip domain-lo
-ena s class
-ser pass 
-line con 0
-pass cisco
-login
-logg s
-line vty 0 15
-pass cisco
-login
-logg s
-banner motd 'Unauthorized access is prohibited'
-interface range g0/0-3, g1/0-3
-sh
-
-int range g0/0-2
-no sh
 
 end
 wr
@@ -399,6 +404,7 @@ pass cisco
 login
 logg s
 banner motd 'Unauthorized access is prohibited'
+
 interface range g0/0-3, g1/0-3
 sh
 
@@ -408,10 +414,11 @@ no sh
 end
 wr
 
-S2L2:
+S2:
 en
 conf t
-hostname S2L2
+hostname S2
+ip routing
 no ip domain-lo
 ena s class
 ser pass 
@@ -426,6 +433,14 @@ logg s
 banner motd 'Unauthorized access is prohibited'
 interface range g0/0-3, g1/0-3
 sh
+
+end
+wr
+
+reload
+
+en
+conf t
 
 vlan 10
 name VLAN_A
@@ -443,52 +458,26 @@ switchport access vlan 11
 no sh
 
 int g0/2
-switchport trunk encapsulation dot1q
-switchport mode trunk
 no sh
 
-end
-wr
-
-S2L3:
-en
-conf t
-hostname S2L3
-no ip domain-lo
-ena s class
-ser pass 
-line con 0
-pass cisco
-login
-logg s
-line vty 0 3
-pass cisco
-login
-logg s
-banner motd 'Unauthorized access is prohibited'
-interface range g0/0-3
-sh
-
-int g0/0
+int vlan 1
+ip address 10.0.1.254 255.255.255.252
 no sh
 
-int g0/0.10
-encapsulation dot1q 10
+int vlan 10
 description VLAN_A
 ip addr 192.168.10.1 255.255.255.0
 ip helper-address 10.0.1.253
 no sh
 
-int g0/0.11
-encapsulation dot1q 11
+int vlan 11
 description VLAN_B
 ip addr 192.168.11.1 255.255.255.0
 ip helper-address 10.0.1.253
 no sh
+exit
 
-int g0/1
-ip address 10.0.1.254 255.255.255.252
-no sh
+ip route 0.0.0.0 0.0.0.0 vlan 1
 
 end
 wr
@@ -645,16 +634,10 @@ end
 wr
 
 PC-n:
-sudo ip link set dev ens3 up
-sudo dhclient
-sudo dhclient -r
+sudo ip link set dev ens3 up && sudo dhclient -r && sudo dhclient
 
 Server:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 10.0.1.246 netmask 255.255.255.252
-sudo ip route add default via 10.0.1.245 dev ens3
+sudo ip link set dev ens3 up && sudo ifconfig ens3 10.0.1.246 netmask 255.255.255.252 && sudo ip route add default via 10.0.1.245 dev ens3
 
 PC3:
-sudo ip link set dev ens3 up
-sudo ifconfig ens3 203.0.113.14 netmask 255.255.255.240
-sudo ip route add default via 203.0.113.1 dev ens3
+sudo ip link set dev ens3 up && sudo ifconfig ens3 203.0.113.14 netmask 255.255.255.240 && sudo ip route add default via 203.0.113.1 dev ens3
