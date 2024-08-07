@@ -152,16 +152,16 @@ no sh
 
 username R2 password cisco
 
-bba-group pppoe R2_GROUP
-virtual-template 1
-exit
-
 ip local pool R2_POOL 203.0.113.18
 interface virtual-template 1
 ip addr 203.0.113.17 255.255.255.248
 mtu 1492
 peer default ip address pool R2_POOL
-ppp authentication chap callin
+ppp authentication chap
+exit
+
+bba-group pppoe R2_GROUP
+virtual-template 1
 exit
 
 int g0/0
@@ -171,18 +171,17 @@ exit
 
 username R4 password cisco
 
-bba-group pppoe R4_GROUP
-virtual-template 2
-exit
-
 ip local pool R4_POOL 203.0.113.26
 interface virtual-template 2
 ip addr 203.0.113.25 255.255.255.248
 mtu 1492
 peer default ip address pool R4_POOL
-ppp authentication chap callin
+ppp authentication chap
 exit
 
+bba-group pppoe R4_GROUP
+virtual-template 2
+exit
 
 int g0/1
 pppoe enable group R4_GROUP
@@ -292,6 +291,7 @@ interface range g0/0-3
 sh
 
 int g0/0
+ip helper-address 10.0.0.249
 no sh
 
 int g0/0.12
@@ -352,6 +352,7 @@ interface range g0/0-3
 sh
 
 int g0/0
+ip helper-address 10.0.0.249
 no sh
 
 int g0/0.12
