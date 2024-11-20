@@ -1,0 +1,358 @@
+R1:
+en
+conf t
+hostname R1
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+sh
+
+int g0/0
+ip addr 10.0.0.1 255.255.255.0
+no sh
+
+int g0/1
+ip addr 10.0.1.1 255.255.255.0
+no sh
+
+int g0/2
+ip addr 10.0.2.1 255.255.255.0
+no sh
+
+int g0/3
+ip addr 10.0.3.1 255.255.255.0
+no sh
+exit
+
+router ospf 1
+network 10.0.0.0 0.0.0.255 area 0
+network 10.0.1.0 0.0.0.255 area 0
+network 10.0.2.0 0.0.0.255 area 0
+network 10.0.3.0 0.0.0.255 area 0
+passive-interface g0/0
+passive-interface g0/1
+exit
+
+end
+wr
+
+
+R2:
+en
+conf t
+hostname R2
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+sh
+
+int g0/0
+ip addr 10.0.2.2 255.255.255.0
+no sh
+
+int g0/1
+ip addr 192.168.0.1 255.255.255.0
+no sh
+exit
+
+router ospf 1
+network 10.0.2.0 0.0.0.255 area 0
+network 192.168.0.0 0.0.0.255 area 0
+passive-interface g0/1
+exit
+
+no ip access-list extended inner_net
+ip access-list extended inner_net
+permit icmp any 192.168.0.0 0.0.0.255 echo-reply
+permit icmp any 192.168.0.0 0.0.0.255 host-unreachable
+permit tcp any any established
+
+permit ospf 10.0.2.0 0.0.0.255 host 224.0.0.5
+permit ospf 10.0.2.0 0.0.0.255 host 224.0.0.6
+permit udp host 10.0.1.10 eq 53 192.168.0.0 0.0.0.255
+exit
+
+int g0/0
+ip access-group inner_net in
+
+end
+wr
+
+
+R3:
+en
+conf t
+hostname R3
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+sh
+
+int g0/0
+ip addr 10.0.3.2 255.255.255.0
+no sh
+
+int g0/1
+ip addr 192.168.1.1 255.255.255.0
+no sh
+exit
+
+router ospf 1
+network 10.0.3.0 0.0.0.255 area 0
+network 192.168.1.0 0.0.0.255 area 0
+passive-interface g0/1
+exit
+
+zone security INSIDE
+exit
+
+no ip access-list extended inner_net
+ip access-list extended inner_net
+permit icmp any 192.168.1.0 0.0.0.255 echo-reply
+permit icmp any 192.168.1.0 0.0.0.255 host-unreachable
+permit tcp any any established
+
+permit udp host 10.0.1.10 eq 53 192.168.1.0 0.0.0.255
+exit
+
+end
+wr
+
+
+Attacker:
+sudo ip link set dev ens3 up && sudo ifconfig ens3 10.0.0.10 netmask 255.255.255.0 && sudo ip route add default via 10.0.0.1 dev ens3
+
+curl http://192.168.0.10
+
+curl http://192.168.1.10
+
+snmpwalk -v 2c -c public 192.168.0.10
+
+snmpwalk -v 2c -c public 192.168.1.10
+
+12.
+nmap -T4 -n -PE -sn 192.168.0.1-10
+
+-T4 - timing template 4
+-n - no DNS resolution
+-PE - ICMP Echo
+-sn - ping scan (disable port scan)
+
+13. Output:
+nmap -T4 -n -PE -sn 192.168.0.1-10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 12:32 MSK
+Nmap done: 10 IP addresses (0 hosts up) scanned in 1.01 seconds
+
+No hosts up due to ICMP Echo not allowed (only reply and host unknown) in R2 G0/0
+
+14.
+nmap -T4 -n -PA -sn 192.168.0.1-10
+
+-T4 - timing template 4
+-n - no DNS resolution
+-PA - TCP ACK scan
+-sn - ping scan (disable port scan)
+
+15. Output:
+nmap -T4 -n -PA -sn 192.168.0.1-10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 12:34 MSK
+Nmap scan report for 192.168.0.1
+Host is up (0.011s latency).
+Nmap scan report for 192.168.0.10
+Host is up (0.0078s latency).
+Nmap done: 10 IP addresses (2 hosts up) scanned in 0.22 seconds
+
+2 hosts up due to TCP rst from inside is allowed (only connections establising from outside isn't allowed)
+Attacker -> Victim-1 TCP ACK
+Victim-1 -> Attacker TCP RST (connection wasn't established, so reset connection)
+
+16.
+nmap -T4 -n -Pn -sS -p1-100 192.168.0.10
+-T4 - timing template 4
+-n - no DNS resolution
+-Pn - skip host discovery (treat all listed hosts as online)
+-sS - SYN scan
+-p1-100 - port range 1-100
+
+17. Output:
+nmap -T4 -n -Pn -sS -p1-100 192.168.0.10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 12:51 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0017s latency).
+All 100 scanned ports on 192.168.0.10 are filtered
+
+Nmap done: 1 IP address (1 host up) scanned in 2.04 seconds
+
+All packets filtered
+
+18.
+nmap -T4 -n -Pn -sA -p1-100 192.168.0.10
+nmap -T4 -n -Pn -sF -p1-100 192.168.0.10
+
+-T4 - timing template 4
+-n - no DNS resolution
+-Pn - skip host discovery (treat all listed hosts as online)
+-sA - ACK scan
+-sF - FIN scan
+-p1-100 - port range 1-100
+
+
+19. Output: nmap -T4 -n -Pn -sA -p1-100 192.168.0.10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 13:09 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0018s latency).
+All 100 scanned ports on 192.168.0.10 are unfiltered
+
+Nmap done: 1 IP address (1 host up) scanned in 0.04 seconds
+
+No open ports found due to sending ACK and receiving RST
+Attacker -> Victim-1 TCP ACK
+Victim-1 -> Attacker TCP RST (connection wasn't established on opened tcp ports, so reset connection)
+
+Output: nmap -T4 -n -Pn -sF -p1-100 192.168.0.10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 13:16 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0030s latency).
+Not shown: 98 closed ports
+PORT   STATE         SERVICE
+22/tcp open|filtered ssh
+80/tcp open|filtered http
+
+Nmap done: 1 IP address (1 host up) scanned in 1.23 seconds
+
+2 open/filtered ports were found due to no response recieved
+Other ports:
+Attacker -> Victim-1 TCP FIN
+Victim-1 -> Attacker TCP RST,ACK (connection wasn't established on opened tcp ports, so reset connection)
+
+21.
+nmap -T4 -n -Pn -sS -p22,80 192.168.0.10
+nmap -T4 -n -Pn -sA -p22,80 192.168.0.10
+nmap -T4 -n -Pn -sF -p22,80 192.168.0.10
+
+22. Output:
+nmap -T4 -n -Pn -sS -p22,80 192.168.0.10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 13:53 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0016s latency).
+
+PORT   STATE    SERVICE
+22/tcp filtered ssh
+80/tcp filtered http
+
+Nmap done: 1 IP address (1 host up) scanned in 1.14 seconds
+
+nmap -T4 -n -Pn -sA -p22,80 192.168.0.10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 13:53 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0018s latency).
+
+PORT   STATE      SERVICE
+22/tcp unfiltered ssh
+80/tcp unfiltered http
+
+Nmap done: 1 IP address (1 host up) scanned in 0.03 seconds
+
+nmap -T4 -n -Pn -sF -p22,80 192.168.0.10
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 13:54 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0024s latency).
+
+PORT   STATE    SERVICE
+22/tcp filtered ssh
+80/tcp filtered http
+
+Nmap done: 1 IP address (1 host up) scanned in 1.13 seconds
+
+
+established = ACK | RST, if ACK | RST not set R2 sends ICMP type 3 code 13: unreachable, packet filtered
+
+23.
+nmap -T4 -n -Pn -sUV -p 161 --source-port 53 192.168.0.10
+
+24. Output:
+Starting Nmap 7.80 ( https://nmap.org ) at 2024-11-10 14:19 MSK
+Nmap scan report for 192.168.0.10
+Host is up (0.0015s latency).
+
+PORT    STATE    SERVICE VERSION
+161/udp filtered snmp
+
+Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in 0.50 seconds
+
+Filtered due to more strict rule is used: source only 10.0.1.10:53 (DNS-server)
+
+25.
+iptables -t nat -A POSTROUTING -p udp --dport 161 -j SNAT --to-source :53
+-t nat - NAT table
+-A POSTROUTING rule - append rule to postrouting chain
+-p udp - protocol UDP
+--dport - dest port 161
+-j SNAT - jump to SNAT (modify source address of the packet)
+--to-source :53 - change port to 53
+
+snmpwalk -v 2c -c public 192.168.0.10
+
+26. Output
+snmpwalk -v 2c -c public 192.168.0.10
+Timeout: No Response from 192.168.0.10
+
+Filtered due to more strict rule is used: source only 10.0.1.10:53 (DNS-server)
+
+
+Server:
+sudo ip link set dev ens3 up && sudo ifconfig ens3 10.0.1.10 netmask 255.255.255.0 && sudo ip route add default via 10.0.1.1 dev ens3
+
+cd /etc/docker-dnsmasq/ && docker-compose up --detach && cd /etc/docker-nginx/ && docker-compose up --detach
+
+Victim-1:
+sudo ip link set dev ens3 up && sudo ifconfig ens3 192.168.0.10 netmask 255.255.255.0 && sudo ip route add default via 192.168.0.1 dev ens3
+
+su - root -c "echo 'nameserver 10.0.1.10' >> /etc/resolv.conf"
+
+cd /etc/docker-nginx/ && docker-compose up --detach && cd -
+
+sudo systemctl start snmpd.service
+
+Victim-2:
+sudo ip link set dev ens3 up && sudo ifconfig ens3 192.168.1.10 netmask 255.255.255.0 && sudo ip route add default via 192.168.1.1 dev ens3
+
+su - root -c "echo 'nameserver 10.0.1.10' >> /etc/resolv.conf"
+
+cd /etc/docker-nginx/ && docker-compose up --detach && cd -
+
+sudo systemctl start snmpd.service

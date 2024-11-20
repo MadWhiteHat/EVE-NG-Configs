@@ -1,0 +1,128 @@
+R1:
+en
+conf t
+hostname R1
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+sh
+
+int g0/0
+ip addr 192.168.0.1 255.255.255.0
+no sh
+
+int g0/1
+ip addr 192.168.1.1 255.255.255.0
+no sh
+exit
+
+aaa new-model
+aaa authentication login default local
+aaa authorization exec default local
+aaa authorization console
+
+username root privilege 15 view root secret root
+
+parser view default_user
+secret user
+commands exec exclude show ip route
+commands exec exclude show banner
+commands exec exclude show parser
+commands exec include all show ip 
+commands exec include ping
+exit
+
+username user view default_user secret user
+
+snmp-server view all iso included
+snmp-server group readers v3 priv read all
+
+snmp-server user readers_admin readers v3 auth sha AuthPasswd priv aes 128 PrivPasswd
+
+snmp mib nhrp
+snmp-server enable traps
+snmp-server group notifiers v3 priv
+
+snmp-server user notifiers_admin notifiers v3 auth sha AuthPasswd priv aes 128 PrivPasswd
+
+snmp-server host 192.168.1.10 version 3 priv notifiers_admin
+
+end
+wr
+
+
+R2:
+en
+conf t
+hostname R2
+no ip domain-lo
+ena s class
+ser pass 
+line con 0
+pass cisco
+login
+logg s
+line vty 0 3
+pass cisco
+login
+logg s
+banner motd 'Unauthorized access is prohibited'
+
+int range g0/0-3
+sh
+
+int g0/0
+ip addr 192.168.0.2 255.255.255.0
+no sh
+exit
+
+ip route 192.168.1.0 255.255.255.0 gi0/0
+
+aaa new-model
+aaa authentication login default local
+aaa authorization exec default local
+aaa authorization console
+
+username root privilege 15 view root secret root
+
+parser view default_user
+secret user
+commands exec exclude show ip route
+commands exec exclude show banner
+commands exec exclude show parser
+commands exec include all show ip 
+commands exec include ping
+exit
+
+username user view default_user secret user
+
+logging host 192.168.1.10
+login on-success log
+login on-failure log
+
+end
+wr
+
+
+PC-1:
+sudo ip link set dev ens3 up && sudo ifconfig ens3 192.168.1.10 netmask 255.255.255.0 && sudo ip route add default via 192.168.1.1 dev ens3
+
+cd /etc/docker-rsyslog && docker-compose up --detach && cd /etc/docker-snmptrapd && docker-compose up --detach
+
+snmpwalk -u readers_admin -A AuthPasswd -X PrivPasswd 192.168.1.1 .iso.org.dod.internet.mgmt.mib-2.system
+
+su -
+echo 'createUser -e 0x800000090300500000010000 notifiers_admin SHA AuthPasswd AES PrivPasswd' >> /etc/docker-snmptrapd/snmptrapd.conf
+echo 'authUser log notifiers_admin' >> /etc/docker-snmptrapd/snmptrapd.conf
+
